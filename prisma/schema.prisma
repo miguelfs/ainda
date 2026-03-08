@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Chapter {
+  id        Int    @id @default(autoincrement())
+  number    Int    @unique
+  title     String
+  part      Int
+  lineStart Int    @map("line_start")
+  lineEnd   Int    @map("line_end")
+
+  chapterSubtopics ChapterSubtopic[]
+
+  @@map("chapters")
+}
+
+model Subtopic {
+  id          Int    @id @default(autoincrement())
+  code        String @unique @db.VarChar(3)
+  name        String
+  description String
+
+  chapterSubtopics ChapterSubtopic[]
+
+  @@map("subtopics")
+}
+
+model ChapterSubtopic {
+  id         Int     @id @default(autoincrement())
+  chapterId  Int     @map("chapter_id")
+  subtopicId Int     @map("subtopic_id")
+  viable     Boolean @default(true)
+
+  chapter   Chapter    @relation(fields: [chapterId], references: [id])
+  subtopic  Subtopic   @relation(fields: [subtopicId], references: [id])
+  questions Question[]
+
+  @@unique([chapterId, subtopicId])
+  @@map("chapter_subtopics")
+}
+
+model Question {
+  id                Int    @id @default(autoincrement())
+  chapterSubtopicId Int    @map("chapter_subtopic_id")
+  questionNumber    Int    @map("question_number")
+
+  stemQuote      String  @map("stem_quote")
+  stemQuotePage  String? @map("stem_quote_page")
+  stemQuoteLines String? @map("stem_quote_lines")
+  stemContext    String  @map("stem_context")
+  stemQuestion   String  @map("stem_question")
+
+  altA          String     @map("alt_a")
+  altB          String     @map("alt_b")
+  altC          String     @map("alt_c")
+  altD          String     @map("alt_d")
+  correctAnswer CorrectAlt @map("correct_answer")
+
+  explanation     String?
+
+  bloom           BloomLevel
+  status          QuestionStatus @default(draft)
+  rejectionReason String?        @map("rejection_reason")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at")
+
+  chapterSubtopic ChapterSubtopic @relation(fields: [chapterSubtopicId], references: [id])
+  userAnswers     UserAnswer[]
+
+  @@unique([chapterSubtopicId, questionNumber])
+  @@map("questions")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  name            String?
+  email           String    @unique
+  emailVerified   Boolean   @default(false) @map("email_verified")
+  image           String?
+  isPaid          Boolean   @default(false) @map("is_paid")
+  paidAt          DateTime? @map("paid_at")
+  stripePaymentId String?   @map("stripe_payment_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  sessions      Session[]
+  accounts      Account[]
+  answers       UserAnswer[]
+  referralUsages ReferralUsage[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String    @map("user_id")
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  idToken               String?   @map("id_token")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("verifications")
+}
+
+model UserAnswer {
+  id         Int        @id @default(autoincrement())
+  userId     String     @map("user_id")
+  questionId Int        @map("question_id")
+  selected   CorrectAlt
+  isCorrect  Boolean    @map("is_correct")
+  answeredAt DateTime   @default(now()) @map("answered_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([userId, questionId])
+  @@map("user_answers")
+}
+
+model ReferralCode {
+  id        Int       @id @default(autoincrement())
+  code      String    @unique @db.VarChar(50)
+  maxUses   Int       @map("max_uses")
+  usedCount Int       @default(0) @map("used_count")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  usages ReferralUsage[]
+
+  @@map("referral_codes")
+}
+
+model ReferralUsage {
+  id             Int      @id @default(autoincrement())
+  referralCodeId Int      @map("referral_code_id")
+  userId         String   @map("user_id")
+  usedAt         DateTime @default(now()) @map("used_at")
+
+  referralCode ReferralCode @relation(fields: [referralCodeId], references: [id])
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([referralCodeId, userId])
+  @@map("referral_usages")
+}
+
+enum QuestionStatus {
+  pending
+  draft
+  review
+  approved
+  rejected
+
+  @@map("question_status")
+}
+
+enum BloomLevel {
+  understand
+  apply
+  analyze
+  evaluate
+
+  @@map("bloom_level")
+}
+
+enum CorrectAlt {
+  A
+  B
+  C
+  D
+
+  @@map("correct_alt")
+}
