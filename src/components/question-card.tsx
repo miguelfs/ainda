@@ -30,6 +30,7 @@ type Props = {
   onNext: () => void
   onAnswer?: (questionId: number, selected: string) => void
   isLast?: boolean
+  onFinish?: () => void
   backHref?: string
 }
 
@@ -42,6 +43,7 @@ export function QuestionCard({
   onNext,
   onAnswer,
   isLast,
+  onFinish,
   backHref,
 }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
@@ -154,6 +156,11 @@ export function QuestionCard({
         {confirmed && !isLast && (
           <Button onClick={onNext} size="lg" className="px-8">
             Próxima
+          </Button>
+        )}
+        {confirmed && isLast && onFinish && (
+          <Button onClick={onFinish} size="lg" className="px-8">
+            Finalizar
           </Button>
         )}
       </div>

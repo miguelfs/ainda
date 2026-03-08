@@ -22,11 +22,9 @@ export default async function QuestoesPage() {
     where: { status: "approved" },
   })
 
-  const paidUserCount = await prisma.user.count({
-    where: { isPaid: true },
-  })
+  const totalUserCount = await prisma.user.count()
 
-  const earlyAccessSpots = Math.max(0, 100 - paidUserCount)
+  const earlyAccessSpots = Math.max(0, 100 - totalUserCount)
 
   const mapped = questions.map((q) => ({
     id: q.id,

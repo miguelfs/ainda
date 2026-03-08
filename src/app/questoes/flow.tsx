@@ -6,10 +6,11 @@ import Link from "next/link"
 import { QuestionCard, type QuestionData } from "@/components/question-card"
 import { UpsellDialog } from "@/components/upsell-dialog"
 import { EarlyAccessDialog } from "@/components/early-access-dialog"
+import { FinishDialog } from "@/components/finish-dialog"
 import { GoogleSignInButton } from "@/components/google-sign-in-button"
 import { Button } from "@/components/ui/button"
 
-const UPSELL_AFTER = 5
+const EARLY_ACCESS_AFTER = 5
 const FREE_TOTAL = 6
 
 type Props = {
@@ -25,16 +26,17 @@ export function FreeQuestionsFlow({
 }: Props) {
   const router = useRouter()
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [showEarlyAccess, setShowEarlyAccess] = useState(false)
+  const [earlyAccessDismissed, setEarlyAccessDismissed] = useState(false)
   const [showUpsell, setShowUpsell] = useState(false)
   const [upsellDismissed, setUpsellDismissed] = useState(false)
-  const [showEarlyAccess, setShowEarlyAccess] = useState(earlyAccessSpots > 0)
-  const [earlyAccessDismissed, setEarlyAccessDismissed] = useState(false)
+  const [showFinishDialog, setShowFinishDialog] = useState(false)
   const [finished, setFinished] = useState(false)
   const [results, setResults] = useState<boolean[]>([])
 
   const total = Math.min(questions.length, FREE_TOTAL)
   const isLast = currentIndex === total - 1
-  const shouldShowUpsellAfterConfirm = currentIndex === UPSELL_AFTER - 1
+  const shouldShowDialogAfterConfirm = currentIndex === EARLY_ACCESS_AFTER - 1
 
   function handleNext() {
     if (isLast) {
@@ -48,22 +50,41 @@ export function FreeQuestionsFlow({
     const isCorrect = selected === questions[currentIndex].correctAnswer
     setResults((prev) => [...prev, isCorrect])
 
-    if (shouldShowUpsellAfterConfirm && !upsellDismissed) {
-      setShowUpsell(true)
+    if (shouldShowDialogAfterConfirm) {
+      if (earlyAccessSpots > 0 && !earlyAccessDismissed) {
+        setShowEarlyAccess(true)
+      } else if (!upsellDismissed) {
+        setShowUpsell(true)
+      }
     }
-  }
-
-  function handleDismiss() {
-    setShowUpsell(false)
-    setUpsellDismissed(true)
-    setCurrentIndex(UPSELL_AFTER)
   }
 
   function handleEarlyAccessDismiss() {
     setShowEarlyAccess(false)
     setEarlyAccessDismissed(true)
+    setCurrentIndex(EARLY_ACCESS_AFTER)
   }
 
+  function handleUpsellDismiss() {
+    setShowUpsell(false)
+    setUpsellDismissed(true)
+    setCurrentIndex(EARLY_ACCESS_AFTER)
+  }
+
+  function handleFinish() {
+    setShowFinishDialog(true)
+  }
+
+  function handleFinishDialogDismiss() {
+    setShowFinishDialog(false)
+    setFinished(true)
+  }
+
+  function handleReferralSuccess() {
+    router.push("/painel")
+  }
+
+  // --- Finished screen state ---
   const [referralCode, setReferralCode] = useState("")
   const [referralError, setReferralError] = useState("")
   const [referralLoading, setReferralLoading] = useState(false)
@@ -71,10 +92,6 @@ export function FreeQuestionsFlow({
   const [showLoginFinished, setShowLoginFinished] = useState(false)
   const finishedTapCount = useRef(0)
   const finishedTapTimer = useRef<ReturnType<typeof setTimeout>>(null)
-
-  function handleReferralSuccess() {
-    router.push("/painel")
-  }
 
   function handleFinishedTitleClick() {
     finishedTapCount.current++
@@ -239,10 +256,11 @@ export function FreeQuestionsFlow({
         onNext={handleNext}
         onAnswer={handleAnswer}
         isLast={isLast}
+        onFinish={isLast ? handleFinish : undefined}
         backHref="/"
       />
 
-      {showEarlyAccess && !earlyAccessDismissed && (
+      {showEarlyAccess && (
         <EarlyAccessDialog
           spotsLeft={earlyAccessSpots}
           totalQuestions={totalApproved}
@@ -253,8 +271,16 @@ export function FreeQuestionsFlow({
       {showUpsell && (
         <UpsellDialog
           totalQuestions={totalApproved}
-          onDismiss={handleDismiss}
+          onDismiss={handleUpsellDismiss}
           onReferralSuccess={handleReferralSuccess}
+        />
+      )}
+
+      {showFinishDialog && (
+        <FinishDialog
+          totalQuestions={totalApproved}
+          earlyAccessSpots={earlyAccessSpots}
+          onDismiss={handleFinishDialogDismiss}
         />
       )}
     </div>
